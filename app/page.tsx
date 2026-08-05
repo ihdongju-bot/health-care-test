@@ -318,7 +318,11 @@ export default function HealthcareHomePage() {
 
   // ---------- 식사/운동 CRUD (Supabase와 동기화) ----------
   async function addMeal(input: Omit<Meal, "id">) {
-    if (!session) return;
+    if (!session) {
+      // 게스트 모드: 로그인이 없으니 Supabase에 저장하지 않고 이 브라우저에서만 임시로 기록합니다.
+      setMeals((prev) => [{ id: `local-${Date.now()}`, ...input }, ...prev]);
+      return;
+    }
     const { data, error } = await supabase
       .from("meals")
       .insert({ user_id: session.user.id, ...input })
@@ -334,11 +338,16 @@ export default function HealthcareHomePage() {
 
   async function deleteMeal(id: string) {
     setMeals((prev) => prev.filter((m) => m.id !== id)); // 낙관적 업데이트
+    if (!session) return; // 게스트 모드에서 추가한 기록은 로컬에만 있으므로 서버 호출 불필요
     await supabase.from("meals").delete().eq("id", id);
   }
 
   async function addWorkout(input: Omit<Workout, "id">) {
-    if (!session) return;
+    if (!session) {
+      // 게스트 모드: 로그인이 없으니 Supabase에 저장하지 않고 이 브라우저에서만 임시로 기록합니다.
+      setWorkouts((prev) => [{ id: `local-${Date.now()}`, ...input }, ...prev]);
+      return;
+    }
     const { data, error } = await supabase
       .from("workouts")
       .insert({ user_id: session.user.id, ...input })
@@ -354,6 +363,7 @@ export default function HealthcareHomePage() {
 
   async function deleteWorkout(id: string) {
     setWorkouts((prev) => prev.filter((w) => w.id !== id)); // 낙관적 업데이트
+    if (!session) return; // 게스트 모드에서 추가한 기록은 로컬에만 있으므로 서버 호출 불필요
     await supabase.from("workouts").delete().eq("id", id);
   }
 
@@ -728,10 +738,6 @@ function MealView({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !calories) return;
-    if (isGuest) {
-      onRequireAuth();
-      return;
-    }
 
     onAdd({
       date: todayKey,
@@ -760,7 +766,7 @@ function MealView({
       {isGuest && (
         <div className="bg-[#F9FBFA] border border-[#E2ECE8] rounded-xl px-4 py-3">
           <p className="text-xs text-[#6B8079] leading-relaxed">
-            둘러보기 모드에서는 식사 기록이 저장되지 않아요. 화면 구성만 자유롭게 확인해보세요.
+            둘러보기 모드예요. 지금 추가하는 식사 기록은 이 브라우저에만 임시로 저장되고, 새로고침하면 사라져요.
           </p>
         </div>
       )}
@@ -854,10 +860,6 @@ function WorkoutView({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !sets) return;
-    if (isGuest) {
-      onRequireAuth();
-      return;
-    }
 
     onAdd({
       date: todayKey,
@@ -881,7 +883,7 @@ function WorkoutView({
       {isGuest && (
         <div className="bg-[#F9FBFA] border border-[#E2ECE8] rounded-xl px-4 py-3">
           <p className="text-xs text-[#6B8079] leading-relaxed">
-            둘러보기 모드에서는 운동 기록이 저장되지 않아요. 화면 구성만 자유롭게 확인해보세요.
+            둘러보기 모드예요. 지금 추가하는 운동 기록은 이 브라우저에만 임시로 저장되고, 새로고침하면 사라져요.
           </p>
         </div>
       )}
