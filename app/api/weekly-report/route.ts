@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // ---------- 주간 AI 리포트 API ----------
-// 최근 7일간의 식사/운동 요약 데이터를 받아 Claude API로 개인화된 코칭 리포트를 생성합니다.
+// 최근 7일간의 식사/운동 요약 데이터를 받아 Google Gemini API로 개인화된 코칭 리포트를 생성합니다.
 // 클라이언트는 원본 기록 전체가 아니라 이미 집계된 요약 수치만 보내도록 설계했습니다
 // (프롬프트 크기 절약 + 불필요한 개인 식단 디테일 전송 최소화).
+//
+// 환경변수 설정 필요: .env.local 파일에 GEMINI_API_KEY=... 추가
+// 키 발급: https://aistudio.google.com/app/apikey (무료 티어 제공)
+
+// 실제 배포 전, 사용 가능한 최신 모델명을 Gemini 문서(ai.google.dev)에서 확인하고 필요시 교체하세요.
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 const REPORT_PROMPT_SYSTEM = `당신은 다정하고 격려하는 톤의 헬스케어 코치입니다.
 사용자의 최근 7일 식단/운동 요약 데이터를 보고 짧은 주간 리포트를 작성하세요.
@@ -21,9 +27,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { goalType, dailyTargetCalories, weeklyAvgCalories, weeklyWorkoutCount, daysWithMealLogs, macroAverages } = body;
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "서버에 ANTHROPIC_API_KEY가 설정되어 있지 않습니다." }, { status: 500 });
+      return NextResponse.json({ error: "서버에 GEMINI_API_KEY가 설정되어 있지 않습니다." }, { status: 500 });
     }
 
     const userDataSummary = `
@@ -35,30 +41,28 @@ export async function POST(req: NextRequest) {
 - 최근 7일 평균 매크로: 탄수화물 ${macroAverages?.carbs ?? 0}g / 단백질 ${macroAverages?.protein ?? 0}g / 지방 ${macroAverages?.fat ?? 0}g
 `.trim();
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        // 실제 배포 전, 사용 가능한 최신 모델명을 Anthropic 문서에서 확인하고 필요시 교체하세요.
-        model: "claude-sonnet-5",
-        max_tokens: 500,
-        system: REPORT_PROMPT_SYSTEM,
-        messages: [{ role: "user", content: `다음 데이터로 주간 리포트를 작성해주세요:\n\n${userDataSummary}` }],
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: REPORT_PROMPT_SYSTEM }] },
+          contents: [
+            { parts: [{ text: `다음 데이터로 주간 리포트를 작성해주세요:\n\n${userDataSummary}` }] },
+          ],
+          generationConfig: { maxOutputTokens: 500 },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
-      return NextResponse.json({ error: `Claude API 오류: ${errText}` }, { status: 502 });
+      return NextResponse.json({ error: `Gemini API 오류: ${errText}` }, { status: 502 });
     }
 
     const data = await response.json();
-    const textBlock = data.content?.find((c: { type: string }) => c.type === "text");
-    const report: string = textBlock?.text?.trim() || "리포트를 생성하지 못했어요. 다시 시도해주세요.";
+    const report: string = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "리포트를 생성하지 못했어요. 다시 시도해주세요.";
 
     return NextResponse.json({ report });
   } catch (err) {
