@@ -230,8 +230,7 @@ export default function HealthcareHomePage() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // 로그인/회원가입 화면은 당분간 닫아둡니다 (게스트 전용 모드).
-  const requireAuth = () => {};
+  const requireAuth = () => setShowAuth(true);
 
   // ---------- 데이터 (Supabase에서 로드) ----------
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -451,15 +450,26 @@ export default function HealthcareHomePage() {
               로그아웃
             </button>
           ) : (
-            <span className="text-xs text-[#16665A] font-semibold mt-1">환영합니다 👋</span>
+            <button
+              onClick={requireAuth}
+              className="text-xs text-[#16665A] font-semibold mt-1"
+            >
+              로그인
+            </button>
           )}
         </header>
 
         {!session && (
-          <div className="mx-5 mb-4 bg-[#F9FBFA] border border-[#E2ECE8] rounded-xl px-4 py-3">
+          <div className="mx-5 mb-4 bg-[#F9FBFA] border border-[#E2ECE8] rounded-xl px-4 py-3 flex items-center justify-between gap-3">
             <p className="text-xs text-[#6B8079] leading-relaxed">
-              환영합니다! 지금 바로 자유롭게 둘러보고 이용해보세요.
+              환영합니다! 지금은 둘러보기 모드예요. 로그인하면 기록이 안전하게 저장돼요.
             </p>
+            <button
+              onClick={requireAuth}
+              className="shrink-0 text-xs font-semibold text-white bg-[#16665A] rounded-lg px-3 py-1.5 active:opacity-80 transition-opacity"
+            >
+              로그인
+            </button>
           </div>
         )}
 
@@ -484,6 +494,7 @@ export default function HealthcareHomePage() {
               setDisplayName={setDisplayName}
               dailyTarget={dailyTarget}
               isGuest={!session}
+              onRequireAuth={requireAuth}
             />
           )}
           {activeTab === "history" && (
@@ -766,7 +777,11 @@ function MealView({
       {isGuest && (
         <div className="bg-[#F9FBFA] border border-[#E2ECE8] rounded-xl px-4 py-3">
           <p className="text-xs text-[#6B8079] leading-relaxed">
-            둘러보기 모드예요. 지금 추가하는 식사 기록은 이 브라우저에만 임시로 저장되고, 새로고침하면 사라져요.
+            둘러보기 모드예요. 지금 추가하는 식사 기록은 이 브라우저에만 임시로 저장돼요.{" "}
+            <button onClick={onRequireAuth} className="text-[#16665A] font-semibold underline underline-offset-2">
+              로그인
+            </button>
+            하면 계정에 안전하게 저장돼요.
           </p>
         </div>
       )}
@@ -883,7 +898,11 @@ function WorkoutView({
       {isGuest && (
         <div className="bg-[#F9FBFA] border border-[#E2ECE8] rounded-xl px-4 py-3">
           <p className="text-xs text-[#6B8079] leading-relaxed">
-            둘러보기 모드예요. 지금 추가하는 운동 기록은 이 브라우저에만 임시로 저장되고, 새로고침하면 사라져요.
+            둘러보기 모드예요. 지금 추가하는 운동 기록은 이 브라우저에만 임시로 저장돼요.{" "}
+            <button onClick={onRequireAuth} className="text-[#16665A] font-semibold underline underline-offset-2">
+              로그인
+            </button>
+            하면 계정에 안전하게 저장돼요.
           </p>
         </div>
       )}
@@ -942,6 +961,7 @@ function GoalView({
   setDisplayName,
   dailyTarget,
   isGuest,
+  onRequireAuth,
 }: {
   goalType: GoalType;
   setGoalType: (g: GoalType) => void;
@@ -951,6 +971,7 @@ function GoalView({
   setDisplayName: (v: string) => void;
   dailyTarget: { calories: number; carbs: number; protein: number; fat: number };
   isGuest: boolean;
+  onRequireAuth: () => void;
 }) {
   const goalOptions: GoalType[] = ["loss", "maintain", "gain"];
   const userWeightKg = Number(weightKgText) || 0;
@@ -960,7 +981,11 @@ function GoalView({
       {isGuest && (
         <div className="bg-[#F9FBFA] border border-[#E2ECE8] rounded-xl px-4 py-3">
           <p className="text-xs text-[#6B8079] leading-relaxed">
-            둘러보기 모드예요. 지금 바꾸는 목표는 저장되지 않고, 화면에서만 미리 확인할 수 있어요.
+            둘러보기 모드예요. 지금 바꾸는 목표는 저장되지 않아요.{" "}
+            <button onClick={onRequireAuth} className="text-[#16665A] font-semibold underline underline-offset-2">
+              로그인
+            </button>
+            하면 저장돼요.
           </p>
         </div>
       )}
@@ -1482,7 +1507,11 @@ function CommunityView({
       {!session && (
         <div className="bg-[#F9FBFA] border border-[#E2ECE8] rounded-xl px-4 py-3">
           <p className="text-xs text-[#6B8079] leading-relaxed">
-            둘러보기 모드에서는 게시글/댓글을 남길 수 없어요. 다른 사람들의 게시글은 자유롭게 볼 수 있어요.
+            둘러보기 모드에서는 게시글/댓글을 남길 수 없어요.{" "}
+            <button onClick={onRequireAuth} className="text-[#16665A] font-semibold underline underline-offset-2">
+              로그인
+            </button>
+            하면 참여할 수 있어요.
           </p>
         </div>
       )}
