@@ -11,8 +11,9 @@ import { NextRequest, NextResponse } from "next/server";
 // ⚠️ 사진만으로는 정확한 분량 측정이 불가능합니다. 여기서 나온 값은 "초안"이며,
 // 반드시 사용자가 식단 폼에서 수량·칼로리를 확인/수정한 뒤 저장하도록 설계되어 있습니다.
 
-// 실제 배포 전, 사용 가능한 최신 모델명을 Gemini 문서(ai.google.dev)에서 확인하고 필요시 교체하세요.
-const GEMINI_MODEL = "gemini-2.0-flash";
+// "gemini-flash-latest"는 Google이 관리하는 별칭으로, 항상 현재 권장되는 무료 플래시 모델을
+// 가리킵니다 (구버전 모델은 무료 할당량이 막힐 수 있어 별칭을 사용합니다).
+const GEMINI_MODEL = "gemini-flash-latest";
 
 const ANALYZE_PROMPT = `당신은 음식 사진을 분석하는 영양 어시스턴트입니다.
 사진 속 음식을 보고 아래 JSON 형식으로만 답하세요. 다른 설명이나 마크다운 없이 JSON만 출력하세요.
@@ -62,8 +63,10 @@ export async function POST(req: NextRequest) {
               ],
             },
           ],
+          // Gemini의 최신 flash 모델은 답변 전에 내부적으로 사고(thinking) 토큰을 소모하므로,
+          // 실제 답변이 잘리지 않도록 여유 있게 설정합니다.
           generationConfig: {
-            maxOutputTokens: 500,
+            maxOutputTokens: 2000,
             responseMimeType: "application/json",
           },
         }),

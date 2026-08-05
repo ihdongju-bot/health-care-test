@@ -8,8 +8,9 @@ import { NextRequest, NextResponse } from "next/server";
 // 환경변수 설정 필요: .env.local 파일에 GEMINI_API_KEY=... 추가
 // 키 발급: https://aistudio.google.com/app/apikey (무료 티어 제공)
 
-// 실제 배포 전, 사용 가능한 최신 모델명을 Gemini 문서(ai.google.dev)에서 확인하고 필요시 교체하세요.
-const GEMINI_MODEL = "gemini-2.0-flash";
+// "gemini-flash-latest"는 Google이 관리하는 별칭으로, 항상 현재 권장되는 무료 플래시 모델을
+// 가리킵니다 (구버전 모델은 무료 할당량이 막힐 수 있어 별칭을 사용합니다).
+const GEMINI_MODEL = "gemini-flash-latest";
 
 const REPORT_PROMPT_SYSTEM = `당신은 다정하고 격려하는 톤의 헬스케어 코치입니다.
 사용자의 최근 7일 식단/운동 요약 데이터를 보고 짧은 주간 리포트를 작성하세요.
@@ -51,7 +52,9 @@ export async function POST(req: NextRequest) {
           contents: [
             { parts: [{ text: `다음 데이터로 주간 리포트를 작성해주세요:\n\n${userDataSummary}` }] },
           ],
-          generationConfig: { maxOutputTokens: 500 },
+          // Gemini의 최신 flash 모델은 답변 전에 내부적으로 사고(thinking) 토큰을 소모하므로,
+          // 실제 답변이 잘리지 않도록 여유 있게 설정합니다.
+          generationConfig: { maxOutputTokens: 2000 },
         }),
       }
     );
