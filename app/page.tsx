@@ -240,6 +240,18 @@ export default function HealthcareHomePage() {
   const [displayName, setDisplayName] = useState("");
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  // 로그아웃하면 이전 계정의 데이터가 게스트 모드에 남아있지 않도록 초기화
+  useEffect(() => {
+    if (!session) {
+      setMeals([]);
+      setWorkouts([]);
+      setGoalType("maintain");
+      setWeightKgText("70");
+      setDisplayName("");
+      setDataLoaded(false);
+    }
+  }, [session]);
+
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
@@ -500,7 +512,7 @@ export default function HealthcareHomePage() {
           {activeTab === "history" && (
             <HistoryView meals={meals} workouts={workouts} todayKey={todayKey} goalType={goalType} dailyTarget={dailyTarget} />
           )}
-          {activeTab === "ranking" && <RankingView />}
+          {activeTab === "ranking" && <RankingView session={session} onRequireAuth={requireAuth} />}
           {activeTab === "recommend" && <RecommendView />}
           {activeTab === "community" && <CommunityView session={session} displayName={displayName} onRequireAuth={requireAuth} />}
         </main>
@@ -1284,12 +1296,13 @@ function HistoryView({
 }
 
 // ---------- 주간 랭킹 (소셜 챌린지) ----------
-function RankingView() {
+function RankingView({ session, onRequireAuth }: { session: Session | null; onRequireAuth: () => void }) {
   const [rows, setRows] = useState<{ display_name: string; workout_count: number }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!session) return;
     let cancelled = false;
     (async () => {
       setIsLoading(true);
@@ -1305,7 +1318,22 @@ function RankingView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session]);
+
+  if (!session) {
+    return (
+      <div className="bg-[#F9FBFA] rounded-2xl border border-[#E2ECE8] p-5 shadow-sm">
+        <p className="text-sm font-bold">🏆 이번 주 운동 챌린지</p>
+        <p className="text-xs text-[#6B8079] mt-2 mb-4 leading-relaxed">랭킹은 로그인한 사용자끼리만 볼 수 있어요.</p>
+        <button
+          onClick={onRequireAuth}
+          className="w-full bg-[#16665A] text-white font-semibold py-2.5 rounded-xl active:opacity-80 transition-opacity"
+        >
+          로그인하고 랭킹 보기
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1413,13 +1441,14 @@ function CommunityView({
   const [newCommentByPost, setNewCommentByPost] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!session) return;
     (async () => {
       setIsLoadingPosts(true);
       const { data } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(50);
       setPosts(data || []);
       setIsLoadingPosts(false);
     })();
-  }, []);
+  }, [session]);
 
   async function handleUploadPost() {
     if (!selectedFile) return;
@@ -1545,11 +1574,12 @@ function CommunityView({
         </button>
       </div>
 
-      {/* 피드 */}
-      {isLoadingPosts && <p className="text-xs text-[#6B8079] text-center py-6">불러오는 중...</p>}
-      {!isLoadingPosts && posts.length === 0 && <EmptyState text="아직 게시글이 없어요. 첫 게시글을 올려보세요!" />}
+      {/* 피드: 게시글 조회는 로그인 사용자에게만 열려 있어요(RLS) */}
+      {session && isLoadingPosts && <p className="text-xs text-[#6B8079] text-center py-6">불러오는 중...</p>}
+      {session && !isLoadingPosts && posts.length === 0 && <EmptyState text="아직 게시글이 없어요. 첫 게시글을 올려보세요!" />}
 
-      {!isLoadingPosts &&
+      {session &&
+        !isLoadingPosts &&
         posts.map((post) => (
           <div key={post.id} className="bg-[#F9FBFA] rounded-2xl border border-[#E2ECE8] shadow-sm overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
